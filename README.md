@@ -1,5 +1,7 @@
 # rotatingquotes
 
+![](./docs/images/widget-medium.png)
+
 Widget de macOS que muestra una frase distinta cada 5 minutos.
 
 ## Cómo funciona la rotación
