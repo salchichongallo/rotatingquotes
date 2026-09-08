@@ -8,53 +8,135 @@
 import WidgetKit
 import SwiftUI
 
+struct QuoteEntry: TimelineEntry {
+    let date: Date
+    let quote: Quote
+}
+
 struct Provider: TimelineProvider {
-    func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), emoji: "😀")
+    func placeholder(in context: Context) -> QuoteEntry {
+        QuoteEntry(date: Date(), quote: QuoteLibrary.all[0])
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let entry = SimpleEntry(date: Date(), emoji: "😀")
-        completion(entry)
+    func getSnapshot(in context: Context, completion: @escaping (QuoteEntry) -> ()) {
+        let now = Date()
+        completion(QuoteEntry(date: now, quote: QuoteLibrary.quote(at: now)))
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
-        var entries: [SimpleEntry] = []
+    func getTimeline(in context: Context, completion: @escaping (Timeline<QuoteEntry>) -> ()) {
+        // One entry per 5-minute slot, aligned to slot boundaries, covering the next 5 hours.
+        var entries: [QuoteEntry] = []
+        var date = QuoteLibrary.slotStart(for: Date())
 
-        // Generate a timeline consisting of five entries an hour apart, starting from the current date.
-        let currentDate = Date()
-        for hourOffset in 0 ..< 5 {
-            let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate, emoji: "😀")
-            entries.append(entry)
+        for _ in 0 ..< 60 {
+            entries.append(QuoteEntry(date: date, quote: QuoteLibrary.quote(at: date)))
+            date = date.addingTimeInterval(QuoteLibrary.rotationInterval)
         }
 
-        let timeline = Timeline(entries: entries, policy: .atEnd)
-        completion(timeline)
+        completion(Timeline(entries: entries, policy: .atEnd))
     }
-
-//    func relevances() async -> WidgetRelevances<Void> {
-//        // Generate a list containing the contexts this widget is relevant in.
-//    }
 }
 
-struct SimpleEntry: TimelineEntry {
-    let date: Date
-    let emoji: String
-}
+struct QuoteWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    @Environment(\.colorScheme) private var colorScheme
 
-struct widgetEntryView : View {
-    var entry: Provider.Entry
+    var entry: QuoteEntry
 
     var body: some View {
-        VStack {
-            HStack {
-                Text("Time:")
-                Text(entry.date, style: .time)
-            }
+        ZStack(alignment: .topLeading) {
+            Text(verbatim: "\u{201C}")
+                .font(.system(size: markSize, weight: .bold, design: .serif))
+                .foregroundStyle(accentColor.opacity(0.18))
+                .offset(x: -markSize * 0.06, y: -markSize * 0.42)
+                .accessibilityHidden(true)
 
-            Text("Emoji:")
-            Text(entry.emoji)
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer(minLength: 0)
+
+                Text(entry.quote.text)
+                    .font(.system(size: quoteSize, weight: .medium, design: .serif))
+                    .italic()
+                    .foregroundStyle(primaryColor)
+                    .lineSpacing(quoteSize * 0.22)
+                    .multilineTextAlignment(.leading)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(lineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let author = entry.quote.author {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Rectangle()
+                            .fill(accentColor.opacity(0.45))
+                            .frame(width: 24, height: 1)
+
+                        Text(author.uppercased())
+                            .font(.system(size: authorSize, weight: .semibold))
+                            .tracking(1.2)
+                            .foregroundStyle(secondaryColor)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    .padding(.top, 12)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 4)
+        .containerBackground(for: .widget) { background }
+    }
+
+    private var background: some View {
+        LinearGradient(
+            colors: colorScheme == .dark
+                ? [Color(red: 0.09, green: 0.10, blue: 0.13), Color(red: 0.05, green: 0.06, blue: 0.09)]
+                : [Color(red: 0.99, green: 0.98, blue: 0.96), Color(red: 0.93, green: 0.92, blue: 0.90)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var primaryColor: Color {
+        colorScheme == .dark ? Color(white: 0.95) : Color(white: 0.13)
+    }
+
+    private var secondaryColor: Color {
+        colorScheme == .dark ? Color(white: 0.62) : Color(white: 0.40)
+    }
+
+    private var accentColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.76, green: 0.66, blue: 0.44)
+            : Color(red: 0.55, green: 0.44, blue: 0.24)
+    }
+
+    private var quoteSize: CGFloat {
+        switch family {
+        case .systemSmall: 13
+        case .systemLarge, .systemExtraLarge: 22
+        default: 16
+        }
+    }
+
+    private var authorSize: CGFloat {
+        family == .systemSmall ? 8 : 10
+    }
+
+    private var markSize: CGFloat {
+        switch family {
+        case .systemSmall: 46
+        case .systemLarge, .systemExtraLarge: 96
+        default: 68
+        }
+    }
+
+    private var lineLimit: Int {
+        switch family {
+        case .systemSmall: 6
+        case .systemLarge, .systemExtraLarge: 12
+        default: 5
         }
     }
 }
@@ -64,16 +146,17 @@ struct widget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
-            if #available(macOS 14.0, *) {
-                widgetEntryView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
-            } else {
-                widgetEntryView(entry: entry)
-                    .padding()
-                    .background()
-            }
+            QuoteWidgetView(entry: entry)
         }
-        .configurationDisplayName("My Widget")
-        .description("This is an example widget.")
+        .configurationDisplayName("Quotes")
+        .description("A rotating quote every five minutes.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
+}
+
+#Preview("Medium", as: .systemMedium) {
+    widget()
+} timeline: {
+    QuoteEntry(date: .now, quote: QuoteLibrary.all[0])
+    QuoteEntry(date: .now, quote: QuoteLibrary.all[3])
 }
