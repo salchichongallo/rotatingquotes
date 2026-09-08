@@ -46,24 +46,54 @@ el widget vive dentro de ese bundle.
 
 ## Editar las citas
 
-Modifica `QuoteLibrary.all` en [widget/Quote.swift](widget/Quote.swift) y vuelve a ejecutar
-`./install.sh`. El autor es opcional:
+Abre la app **rotatingquotes**: es un editor de lista donde añades, borras y reordenas
+frases, cada una con su autor opcional. Los cambios se guardan solos y el widget se
+recarga al instante.
 
-```swift
-Quote(id: 12, text: "Tu frase aquí"),
-Quote(id: 13, text: "Otra frase", author: "Alguien"),
+Las frases viven en un JSON fuera del código:
+
+```
+~/Library/Containers/co.jgallo.rotatingquotes.widget/Data/Library/Application Support/co.jgallo.rotatingquotes/quotes.json
 ```
 
-Los `id` deben ser únicos. Con `N` citas, el ciclo completo dura `N × 5` minutos.
+```json
+[
+  { "text": "I leave you the best of myself" },
+  { "text": "The obstacle is the way", "author": "Marcus Aurelius" }
+]
+```
+
+El campo `author` es opcional. La primera vez que abres la app se precargan 12 frases de
+ejemplo; el botón **Restaurar predeterminadas** vuelve a ellas. Con `N` frases, el ciclo
+completo dura `N × 5` minutos.
+
+## Sandbox
+
+Los dos targets tienen ajustes distintos, y es deliberado:
+
+- **Widget: con sandbox.** macOS no registra extensiones de widget sin él. Verificado:
+  con `ENABLE_APP_SANDBOX = NO` la extensión desaparece de `pluginkit` y de la galería.
+- **App: sin sandbox.** Así puede escribir dentro del contenedor del widget, que es donde
+  la extensión resuelve su propio `Application Support`.
+
+Compartir datos entre una app en sandbox y su widget exigiría un App Group, que a su vez
+requiere una cuenta de pago del Apple Developer Program. Este esquema lo evita, a costa de
+que la app pierde el aislamiento del sandbox y deja de ser distribuible por el Mac App
+Store.
+
+Si algún día tienes cuenta de pago, lo correcto es volver a activar el sandbox de la app y
+migrar a un App Group: solo cambia `directoryURL` en los dos `QuoteStore.swift`.
 
 ## Estructura
 
 | Ruta | Descripción |
 | --- | --- |
-| `widget/Quote.swift` | Modelo, listado de citas y lógica de rotación |
+| `widget/Quote.swift` | Modelo y lógica de rotación |
+| `widget/QuoteStore.swift` | Lectura del JSON compartido |
 | `widget/widget.swift` | Timeline provider y vista del widget |
 | `widget/ShiftQuoteIntent.swift` | Intent y almacenamiento del desplazamiento manual |
-| `rotatingquotes/` | App contenedora (mínima, solo aloja la extensión) |
+| `rotatingquotes/QuoteStore.swift` | Modelo, valores por defecto, guardado y recarga del widget |
+| `rotatingquotes/ContentView.swift` | Editor de frases |
 | `install.sh` | Compilación e instalación |
 
 Tamaños soportados: pequeño, mediano y grande. El estilo se adapta a modo claro y oscuro.

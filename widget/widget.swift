@@ -16,22 +16,24 @@ struct QuoteEntry: TimelineEntry {
 
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> QuoteEntry {
-        QuoteEntry(date: Date(), quote: QuoteLibrary.all[0])
+        QuoteEntry(date: Date(), quote: QuoteStore.load().first ?? QuoteLibrary.placeholder)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (QuoteEntry) -> ()) {
         let now = Date()
-        completion(QuoteEntry(date: now, quote: QuoteLibrary.quote(at: now, offset: QuoteOffsetStore.offset)))
+        let quotes = QuoteStore.load()
+        completion(QuoteEntry(date: now, quote: QuoteLibrary.quote(at: now, offset: QuoteOffsetStore.offset, from: quotes)))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<QuoteEntry>) -> ()) {
         // One entry per 5-minute slot, aligned to slot boundaries, covering the next 5 hours.
+        let quotes = QuoteStore.load()
         let offset = QuoteOffsetStore.offset
         var entries: [QuoteEntry] = []
         var date = QuoteLibrary.slotStart(for: Date())
 
         for _ in 0 ..< 60 {
-            entries.append(QuoteEntry(date: date, quote: QuoteLibrary.quote(at: date, offset: offset)))
+            entries.append(QuoteEntry(date: date, quote: QuoteLibrary.quote(at: date, offset: offset, from: quotes)))
             date = date.addingTimeInterval(QuoteLibrary.rotationInterval)
         }
 
@@ -66,13 +68,13 @@ struct QuoteWidgetView: View {
                     .lineLimit(lineLimit)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if let author = entry.quote.author {
+                if !entry.quote.author.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Rectangle()
                             .fill(accentColor.opacity(0.45))
                             .frame(width: 24, height: 1)
 
-                        Text(author.uppercased())
+                        Text(entry.quote.author.uppercased())
                             .font(.system(size: authorSize, weight: .semibold))
                             .tracking(1.2)
                             .foregroundStyle(secondaryColor)
@@ -186,6 +188,6 @@ struct widget: Widget {
 #Preview("Medium", as: .systemMedium) {
     widget()
 } timeline: {
-    QuoteEntry(date: .now, quote: QuoteLibrary.all[0])
-    QuoteEntry(date: .now, quote: QuoteLibrary.all[3])
+    QuoteEntry(date: .now, quote: Quote(text: "I leave you the best of myself"))
+    QuoteEntry(date: .now, quote: Quote(text: "The obstacle is the way", author: "Marcus Aurelius"))
 }

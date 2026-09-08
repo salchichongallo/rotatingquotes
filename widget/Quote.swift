@@ -5,15 +5,32 @@
 
 import Foundation
 
-struct Quote: Identifiable, Hashable {
-    let id: Int
-    let text: String
-    let author: String?
+struct Quote: Identifiable, Hashable, Codable {
+    var id = UUID()
+    var text: String
+    var author: String = ""
 
-    init(id: Int, text: String, author: String? = nil) {
-        self.id = id
+    private enum CodingKeys: String, CodingKey {
+        case text, author
+    }
+
+    init(text: String, author: String = "") {
         self.text = text
         self.author = author
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        text = try container.decode(String.self, forKey: .text)
+        author = try container.decodeIfPresent(String.self, forKey: .author) ?? ""
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(text, forKey: .text)
+        if !author.isEmpty {
+            try container.encode(author, forKey: .author)
+        }
     }
 }
 
@@ -37,19 +54,7 @@ struct SeededGenerator: RandomNumberGenerator {
 enum QuoteLibrary {
     static let rotationInterval: TimeInterval = 5 * 60
 
-    static let all: [Quote] = [
-        Quote(id: 0, text: "I leave you the best of myself"),
-        Quote(id: 1, text: "The future belongs to those who learn more skills and combine them in creative ways"),
-        Quote(id: 2, text: "Is there a way that I can win doing this even if I fail?"),
-        Quote(id: 3, text: "You do not rise to the level of your goals, you fall to the level of your systems", author: "James Clear"),
-        Quote(id: 4, text: "The obstacle is the way", author: "Marcus Aurelius"),
-        Quote(id: 5, text: "Simplicity is the ultimate sophistication", author: "Leonardo da Vinci"),
-        Quote(id: 6, text: "What you do every day matters more than what you do once in a while"),
-        Quote(id: 7, text: "Compare yourself to who you were yesterday, not to who someone else is today"),
-        Quote(id: 8, text: "The best time to plant a tree was twenty years ago. The second best time is now"),
-        Quote(id: 9, text: "Amateurs wait for inspiration. Professionals get to work"),
-        Quote(id: 10, text: "Make it work, make it right, make it fast", author: "Kent Beck"),
-    ]
+    static let placeholder = Quote(text: "Abre rotatingquotes para añadir tus frases")
 
     /// Start of the 5-minute slot that contains `date`.
     static func slotStart(for date: Date) -> Date {
@@ -61,34 +66,32 @@ enum QuoteLibrary {
         slotStart(for: date).addingTimeInterval(rotationInterval)
     }
 
-    /// Picks the quote for `date`. Each cycle of `all.count` slots shows every quote
+    /// Picks the quote for `date`. Each cycle of `quotes.count` slots shows every quote
     /// exactly once, in an order that is random per cycle but reproducible.
     /// `offset` shifts the sequence by whole slots without breaking that guarantee.
-    static func quote(at date: Date, offset: Int = 0) -> Quote {
-        guard !all.isEmpty else {
-            return Quote(id: 0, text: "")
-        }
+    static func quote(at date: Date, offset: Int = 0, from quotes: [Quote]) -> Quote {
+        guard !quotes.isEmpty else { return placeholder }
 
-        let count = all.count
+        let count = quotes.count
         let slot = Int(floor(date.timeIntervalSince1970 / rotationInterval)) + offset
         let cycleIndex = Int(floor(Double(slot) / Double(count)))
         let position = ((slot % count) + count) % count
 
-        return all[order(forCycle: cycleIndex)[position]]
+        return quotes[order(forCycle: cycleIndex, count: count)[position]]
     }
 
-    private static func shuffledIndices(forCycle cycle: Int) -> [Int] {
+    private static func shuffledIndices(forCycle cycle: Int, count: Int) -> [Int] {
         var generator = SeededGenerator(seed: UInt64(bitPattern: Int64(cycle)))
-        return Array(0 ..< all.count).shuffled(using: &generator)
+        return Array(0 ..< count).shuffled(using: &generator)
     }
 
-    private static func order(forCycle cycle: Int) -> [Int] {
-        var order = shuffledIndices(forCycle: cycle)
+    private static func order(forCycle cycle: Int, count: Int) -> [Int] {
+        var order = shuffledIndices(forCycle: cycle, count: count)
 
         // Keep the same quote from spanning a cycle boundary. The adjustment only touches
         // the first two slots, so the previous cycle's last index is its unadjusted one.
-        if all.count > 2,
-           let previousLast = shuffledIndices(forCycle: cycle - 1).last,
+        if count > 2,
+           let previousLast = shuffledIndices(forCycle: cycle - 1, count: count).last,
            order[0] == previousLast {
             order.swapAt(0, 1)
         }
