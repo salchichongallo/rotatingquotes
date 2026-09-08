@@ -48,50 +48,46 @@ struct QuoteWidgetView: View {
     var entry: QuoteEntry
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        ZStack(alignment: .bottomTrailing) {
             Text(verbatim: "\u{201C}")
-                .font(.system(size: markSize, weight: .bold, design: .serif))
-                .foregroundStyle(accentColor.opacity(0.18))
-                .offset(x: -markSize * 0.06, y: -markSize * 0.42)
+                .font(.system(size: markSize, weight: .black, design: .serif))
+                .foregroundStyle(markGradient)
+                .offset(x: markSize * 0.08, y: markSize * 0.30)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 0) {
-                Spacer(minLength: 0)
-
                 Text(entry.quote.text)
-                    .font(.system(size: quoteSize, weight: .medium, design: .serif))
+                    .font(.system(size: quoteSize, weight: .semibold, design: .serif))
                     .italic()
                     .foregroundStyle(primaryColor)
-                    .lineSpacing(quoteSize * 0.22)
+                    .lineSpacing(quoteSize * 0.18)
                     .multilineTextAlignment(.leading)
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(lineLimit)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .minimumScaleFactor(0.35)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 
                 if !entry.quote.author.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
                         Rectangle()
-                            .fill(accentColor.opacity(0.45))
-                            .frame(width: 24, height: 1)
+                            .fill(accentColor)
+                            .frame(width: 18, height: 2)
 
                         Text(entry.quote.author.uppercased())
-                            .font(.system(size: authorSize, weight: .semibold))
-                            .tracking(1.2)
-                            .foregroundStyle(secondaryColor)
+                            .font(.system(size: authorSize, weight: .bold))
+                            .tracking(1.6)
+                            .foregroundStyle(accentColor)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
                     }
-                    .padding(.top, 12)
+                    .padding(.top, 10)
                 }
-
-                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, showsControls ? 20 : 0)
+            .padding(padding)
+            .padding(.bottom, showsControls ? 16 : 0)
         }
-        .padding(.horizontal, 4)
         .overlay(alignment: .bottomTrailing) {
-            if showsControls { controls }
+            if showsControls {
+                controls.padding(padding * 0.6)
+            }
         }
         .containerBackground(for: .widget) { background }
     }
@@ -120,12 +116,29 @@ struct QuoteWidgetView: View {
     }
 
     private var background: some View {
+        ZStack {
+            LinearGradient(
+                colors: colorScheme == .dark
+                    ? [Color(red: 0.13, green: 0.14, blue: 0.19), Color(red: 0.04, green: 0.04, blue: 0.07)]
+                    : [Color(red: 1.00, green: 0.99, blue: 0.97), Color(red: 0.89, green: 0.87, blue: 0.83)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            RadialGradient(
+                colors: [accentColor.opacity(colorScheme == .dark ? 0.22 : 0.14), .clear],
+                center: .topLeading,
+                startRadius: 0,
+                endRadius: 260
+            )
+        }
+    }
+
+    private var markGradient: LinearGradient {
         LinearGradient(
-            colors: colorScheme == .dark
-                ? [Color(red: 0.09, green: 0.10, blue: 0.13), Color(red: 0.05, green: 0.06, blue: 0.09)]
-                : [Color(red: 0.99, green: 0.98, blue: 0.96), Color(red: 0.93, green: 0.92, blue: 0.90)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            colors: [accentColor.opacity(colorScheme == .dark ? 0.30 : 0.24), accentColor.opacity(0.04)],
+            startPoint: .top,
+            endPoint: .bottom
         )
     }
 
@@ -145,29 +158,33 @@ struct QuoteWidgetView: View {
 
     private var quoteSize: CGFloat {
         switch family {
-        case .systemSmall: 13
-        case .systemLarge, .systemExtraLarge: 22
-        default: 16
+        case .systemSmall: 17
+        case .systemLarge, .systemExtraLarge: 34
+        default: 23
         }
     }
 
     private var authorSize: CGFloat {
-        family == .systemSmall ? 8 : 10
+        switch family {
+        case .systemSmall: 8
+        case .systemLarge, .systemExtraLarge: 12
+        default: 10
+        }
     }
 
     private var markSize: CGFloat {
         switch family {
-        case .systemSmall: 46
-        case .systemLarge, .systemExtraLarge: 96
-        default: 68
+        case .systemSmall: 96
+        case .systemLarge, .systemExtraLarge: 230
+        default: 150
         }
     }
 
-    private var lineLimit: Int {
+    private var padding: CGFloat {
         switch family {
-        case .systemSmall: 6
-        case .systemLarge, .systemExtraLarge: 12
-        default: 5
+        case .systemSmall: 14
+        case .systemLarge, .systemExtraLarge: 26
+        default: 20
         }
     }
 }
@@ -182,6 +199,7 @@ struct widget: Widget {
         .configurationDisplayName("Quotes")
         .description("A rotating quote every five minutes.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .contentMarginsDisabled()
     }
 }
 
