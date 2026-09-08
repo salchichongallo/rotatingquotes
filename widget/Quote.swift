@@ -63,13 +63,14 @@ enum QuoteLibrary {
 
     /// Picks the quote for `date`. Each cycle of `all.count` slots shows every quote
     /// exactly once, in an order that is random per cycle but reproducible.
-    static func quote(at date: Date) -> Quote {
+    /// `offset` shifts the sequence by whole slots without breaking that guarantee.
+    static func quote(at date: Date, offset: Int = 0) -> Quote {
         guard !all.isEmpty else {
             return Quote(id: 0, text: "")
         }
 
         let count = all.count
-        let slot = Int(floor(date.timeIntervalSince1970 / rotationInterval))
+        let slot = Int(floor(date.timeIntervalSince1970 / rotationInterval)) + offset
         let cycleIndex = Int(floor(Double(slot) / Double(count)))
         let position = ((slot % count) + count) % count
 

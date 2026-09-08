@@ -5,6 +5,7 @@
 //  Created by Jaime Gallo on 8/09/26.
 //
 
+import AppIntents
 import WidgetKit
 import SwiftUI
 
@@ -20,16 +21,17 @@ struct Provider: TimelineProvider {
 
     func getSnapshot(in context: Context, completion: @escaping (QuoteEntry) -> ()) {
         let now = Date()
-        completion(QuoteEntry(date: now, quote: QuoteLibrary.quote(at: now)))
+        completion(QuoteEntry(date: now, quote: QuoteLibrary.quote(at: now, offset: QuoteOffsetStore.offset)))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<QuoteEntry>) -> ()) {
         // One entry per 5-minute slot, aligned to slot boundaries, covering the next 5 hours.
+        let offset = QuoteOffsetStore.offset
         var entries: [QuoteEntry] = []
         var date = QuoteLibrary.slotStart(for: Date())
 
         for _ in 0 ..< 60 {
-            entries.append(QuoteEntry(date: date, quote: QuoteLibrary.quote(at: date)))
+            entries.append(QuoteEntry(date: date, quote: QuoteLibrary.quote(at: date, offset: offset)))
             date = date.addingTimeInterval(QuoteLibrary.rotationInterval)
         }
 
@@ -83,9 +85,36 @@ struct QuoteWidgetView: View {
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, showsControls ? 20 : 0)
         }
         .padding(.horizontal, 4)
+        .overlay(alignment: .bottomTrailing) {
+            if showsControls { controls }
+        }
         .containerBackground(for: .widget) { background }
+    }
+
+    private var controls: some View {
+        HStack(spacing: 2) {
+            navigationButton(offset: -1, systemImage: "chevron.left", label: "Cita anterior")
+            navigationButton(offset: 1, systemImage: "chevron.right", label: "Cita siguiente")
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(secondaryColor)
+    }
+
+    private func navigationButton(offset: Int, systemImage: String, label: String) -> some View {
+        Button(intent: ShiftQuoteIntent(offset: offset)) {
+            Image(systemName: systemImage)
+                .font(.system(size: 10, weight: .semibold))
+                .frame(width: 24, height: 20)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel(label)
+    }
+
+    private var showsControls: Bool {
+        family != .systemSmall
     }
 
     private var background: some View {

@@ -15,6 +15,17 @@ Esto garantiza que:
 - Ninguna cita se repite dos franjas seguidas, ni siquiera entre ciclos.
 - No hace falta persistencia ni estado compartido: la cita se calcula desde la fecha.
 
+## Navegación manual
+
+En tamaño mediano y grande el widget incluye dos botones para ir a la cita anterior o
+siguiente. Usan App Intents (`ShiftQuoteIntent`) y acumulan un desplazamiento de franjas en
+`UserDefaults`, que el provider suma al índice antes de calcular la cita. Como el
+desplazamiento se aplica en franjas completas, la garantía de cobertura se mantiene.
+
+El reloj sigue corriendo: tras navegar manualmente, la rotación automática continúa en la
+siguiente frontera de 5 minutos. Hay un retardo de unos cientos de milisegundos entre el
+clic y el refresco; es una limitación de WidgetKit.
+
 ## Instalación
 
 ```bash
@@ -51,7 +62,9 @@ Los `id` deben ser únicos. Con `N` citas, el ciclo completo dura `N × 5` minut
 | --- | --- |
 | `widget/Quote.swift` | Modelo, listado de citas y lógica de rotación |
 | `widget/widget.swift` | Timeline provider y vista del widget |
+| `widget/ShiftQuoteIntent.swift` | Intent y almacenamiento del desplazamiento manual |
 | `rotatingquotes/` | App contenedora (mínima, solo aloja la extensión) |
 | `install.sh` | Compilación e instalación |
 
 Tamaños soportados: pequeño, mediano y grande. El estilo se adapta a modo claro y oscuro.
+Los botones de navegación solo aparecen en mediano y grande.
