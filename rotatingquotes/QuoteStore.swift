@@ -106,6 +106,10 @@ final class QuotesModel {
         quotes.remove(atOffsets: offsets)
     }
 
+    func remove(_ quote: Quote) {
+        quotes.removeAll { $0.id == quote.id }
+    }
+
     func move(fromOffsets source: IndexSet, toOffset destination: Int) {
         quotes.move(fromOffsets: source, toOffset: destination)
     }
