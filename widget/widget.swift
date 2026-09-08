@@ -2,7 +2,7 @@
 //  widget.swift
 //  widget
 //
-//  Created by Jaime Gallo on 8/09/26.
+//  Created by Jimmy Murillo on 8/09/26.
 //
 
 import AppIntents

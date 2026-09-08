@@ -83,7 +83,10 @@ fi
 
 # La app debe ejecutarse al menos una vez para que el widget aparezca en la galería.
 info "Registrando el widget..."
-open "$INSTALLED_APP"
+[[ -x "$LSREGISTER" ]] && "$LSREGISTER" -f "$INSTALLED_APP" >/dev/null 2>&1 || true
+if ! open "$INSTALLED_APP"; then
+    warn "La app se instaló, pero macOS no pudo abrirla automáticamente. Ábrela desde /Applications."
+fi
 sleep 3
 refresh_widget_daemons
 
